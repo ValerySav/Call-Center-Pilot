@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI-Native Call Center — Анализ, план пилота и спецификация робота</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0a0f; --surface: #12121a; --surface-2: #1a1a28; --border: #2a2a3a;
+  --text: #e8e8f0; --text-dim: #8888a0;
+  --accent: #00d4aa; --accent-2: #00a8ff; --accent-3: #ff6b35;
+  --warning: #ffcc00; --danger: #ff4466; --success: #00e676;
+  --gradient-1: linear-gradient(135deg, #00d4aa 0%, #00a8ff 100%);
+  --gradient-2: linear-gradient(135deg, #ff6b35 0%, #ffcc00 100%);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; font-size: 16px; }
+.noise {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  opacity: 0.03; pointer-events: none; z-index: 9999;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.container { max-width: 1100px; margin: 0 auto; padding: 0 32px; }
+.hero { padding: 80px 0 60px; position: relative; overflow: hidden; }
+.hero::before {
+  content: ''; position: absolute; top: -200px; right: -200px;
+  width: 600px; height: 600px;
+  background: radial-gradient(circle, rgba(0,212,170,0.08) 0%, transparent 70%);
+  pointer-events: none;
+}
+.hero-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 16px; border: 1px solid var(--accent);
+  border-radius: 100px; font-size: 12px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 2px;
+  color: var(--accent); margin-bottom: 24px;
+}
+.hero-badge::before { content: '●'; font-size: 8px; animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+h1 { font-size: clamp(36px, 5vw, 56px); font-weight: 900; line-height: 1.1; margin-bottom: 20px; letter-spacing: -1px; }
+h1 span { background: var(--gradient-1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.hero-sub { font-size: 18px; color: var(--text-dim); max-width: 720px; font-weight: 300; }
+section { padding: 48px 0; }
+h2 { font-size: 28px; font-weight: 800; margin-bottom: 24px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+h2 .num {
+  font-family: 'JetBrains Mono', monospace; font-size: 14px; color: var(--accent);
+  background: rgba(0,212,170,0.1); padding: 4px 12px; border-radius: 4px; letter-spacing: 1px;
+}
+h3 { font-size: 20px; font-weight: 700; margin: 28px 0 12px; color: var(--accent-2); }
+h4 { font-size: 17px; font-weight: 700; margin: 20px 0 10px; color: var(--text); }
+p { margin-bottom: 14px; }
+.card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; margin: 24px 0; }
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 28px; transition: all 0.3s;
+}
+.card:hover { border-color: var(--accent); transform: translateY(-2px); }
+.card-label {
+  font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  text-transform: uppercase; letter-spacing: 2px; color: var(--text-dim); margin-bottom: 8px;
+}
+.card-value {
+  font-size: 36px; font-weight: 900; line-height: 1;
+  background: var(--gradient-1); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.card-value-orange { background: var(--gradient-2); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.card-desc { font-size: 14px; color: var(--text-dim); margin-top: 10px; }
+.data-table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px; }
+.data-table th {
+  text-align: left; padding: 12px 16px; background: var(--surface-2);
+  border-bottom: 2px solid var(--accent); font-weight: 700; font-size: 12px;
+  text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim);
+}
+.data-table td { padding: 12px 16px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.data-table tr:hover td { background: rgba(0,212,170,0.03); }
+.mono { font-family: 'JetBrains Mono', monospace; font-size: 13px; }
+.green { color: var(--success); font-weight: 700; }
+.red { color: var(--danger); font-weight: 700; }
+.orange { color: var(--accent-3); font-weight: 700; }
+.highlight {
+  background: linear-gradient(135deg, rgba(0,212,170,0.08), rgba(0,168,255,0.05));
+  border-left: 3px solid var(--accent);
+  padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 20px 0;
+}
+.highlight-orange {
+  background: linear-gradient(135deg, rgba(255,107,53,0.08), rgba(255,204,0,0.05));
+  border-left: 3px solid var(--accent-3);
+  padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 20px 0;
+}
+.phase {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 32px; margin: 24px 0; position: relative;
+}
+.phase::before {
+  content: attr(data-phase); position: absolute; top: -12px; left: 24px;
+  background: var(--bg); padding: 0 12px;
+  font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700;
+  color: var(--accent); text-transform: uppercase; letter-spacing: 2px;
+}
+.phase-orange::before { color: var(--accent-3); }
+.phase-orange { border-color: rgba(255,107,53,0.3); }
+.phase-title { font-size: 22px; font-weight: 800; margin-bottom: 16px; }
+.flow { display: flex; flex-direction: column; gap: 0; margin: 24px 0; }
+.flow-step { display: flex; gap: 20px; padding: 18px 0; position: relative; }
+.flow-step::before {
+  content: ''; position: absolute;
+  left: 17px; top: 44px; bottom: -4px; width: 2px;
+  background: var(--border);
+}
+.flow-step:last-child::before { display: none; }
+.flow-num {
+  flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%;
+  background: var(--surface-2); border: 2px solid var(--accent);
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700;
+  color: var(--accent);
+}
+.flow-content { flex: 1; }
+.flow-content strong { color: var(--text); display: block; margin-bottom: 4px; }
+.flow-content p { color: var(--text-dim); font-size: 14px; margin-bottom: 0; }
+.dialog {
+  background: var(--surface-2); border-radius: 8px;
+  padding: 20px 24px; margin: 16px 0; font-size: 14px; line-height: 1.7;
+  border-left: 3px solid var(--accent-2);
+}
+.dialog .turn { margin-bottom: 12px; }
+.dialog .turn:last-child { margin-bottom: 0; }
+.dialog .speaker {
+  color: var(--accent-2); font-weight: 700;
+  font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  display: inline-block; min-width: 70px;
+}
+.dialog .speaker-bot { color: var(--accent); }
+.dialog .de { color: var(--text); font-style: italic; }
+.dialog .ru { color: var(--text-dim); font-size: 12px; display: block; padding-left: 70px; margin-top: 4px; }
+.branches { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin: 20px 0; }
+.flowchart-block {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 28px 20px 20px;
+  margin: 24px 0;
+  text-align: center;
+}
+.flowchart-block svg { max-width: 100%; height: auto; }
+.flowchart-block .caption {
+  font-size: 13px; color: var(--text-dim);
+  margin-top: 12px; font-style: italic;
+}
+.branch {
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 20px;
+}
+.branch-title {
+  font-weight: 700; font-size: 15px; margin-bottom: 10px;
+  color: var(--accent-2); display: flex; align-items: center; gap: 8px;
+}
+.branch-title .icon {
+  width: 28px; height: 28px; border-radius: 6px;
+  background: rgba(0,168,255,0.15); display: flex; align-items: center;
+  justify-content: center; font-size: 14px;
+}
+.branch ul { margin: 8px 0 0 0; }
+.branch ul li { font-size: 13px; padding: 4px 0 4px 16px; color: var(--text-dim); }
+.branch ul li::before { font-size: 10px; }
+.branch ul li strong { color: var(--text); }
+.divider { height: 1px; background: var(--border); margin: 48px 0; }
+ul { padding-left: 0; list-style: none; margin: 12px 0; }
+ul li { padding: 6px 0 6px 20px; position: relative; font-size: 15px; }
+ul li::before { content: '▸'; position: absolute; left: 0; color: var(--accent); font-weight: 700; }
+.tag { display: inline-block; padding: 3px 10px; border-radius: 4px; font-size: 12px; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+.tag-green { background: rgba(0,230,118,0.1); color: var(--success); }
+.tag-orange { background: rgba(255,107,53,0.1); color: var(--accent-3); }
+.tag-blue { background: rgba(0,168,255,0.1); color: var(--accent-2); }
+.tag-red { background: rgba(255,68,102,0.1); color: var(--danger); }
+.tag-gray { background: rgba(136,136,160,0.1); color: var(--text-dim); }
+.roadmap { margin: 32px 0; position: relative; }
+.roadmap::before {
+  content: ''; position: absolute;
+  left: 24px; top: 20px; bottom: 20px; width: 2px;
+  background: linear-gradient(180deg, var(--accent) 0%, var(--accent-2) 100%);
+}
+.roadmap-item {
+  position: relative; padding: 0 0 28px 64px; min-height: 60px;
+}
+.roadmap-item:last-child { padding-bottom: 0; }
+.roadmap-marker {
+  position: absolute; left: 12px; top: 4px;
+  width: 26px; height: 26px; border-radius: 50%;
+  background: var(--bg); border: 3px solid var(--accent);
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700;
+  color: var(--accent); z-index: 1;
+}
+.roadmap-day {
+  font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  color: var(--accent); text-transform: uppercase; letter-spacing: 2px;
+  margin-bottom: 6px;
+}
+.roadmap-title { font-weight: 800; font-size: 17px; margin-bottom: 6px; color: var(--text); }
+.roadmap-desc { font-size: 14px; color: var(--text-dim); line-height: 1.6; }
+.roadmap-gate .roadmap-marker {
+  border-color: var(--accent-3); color: var(--accent-3);
+  background: var(--surface);
+}
+.roadmap-gate .roadmap-day { color: var(--accent-3); }
+.roadmap-gate .roadmap-title::before { content: '🚦 '; }
+.roadmap-gate {
+  background: linear-gradient(135deg, rgba(255,107,53,0.06), rgba(255,204,0,0.03));
+  border-left: 3px solid var(--accent-3);
+  margin-left: 50px; padding: 16px 20px 16px 20px;
+  border-radius: 0 8px 8px 0;
+}
+.roadmap-gate .roadmap-marker { left: -38px; }
+.qa-block {
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 24px; margin: 16px 0;
+}
+.qa-q {
+  font-weight: 700; color: var(--accent-2); font-size: 16px; margin-bottom: 12px;
+  display: flex; align-items: center; gap: 10px;
+}
+.qa-q::before {
+  content: 'Q'; background: rgba(0,168,255,0.15); color: var(--accent-2);
+  width: 24px; height: 24px; border-radius: 4px; display: flex;
+  align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; font-size: 12px;
+}
+.qa-a { color: var(--text); font-size: 14px; }
+.qa-a p { margin-bottom: 10px; }
+
+.excel-block {
+  background: var(--surface); border: 2px solid var(--accent);
+  border-radius: 12px; padding: 28px; margin: 24px 0; position: relative;
+}
+.excel-block::before {
+  content: '📊 РЕЗУЛЬТАТ РАБОТЫ РОБОТА'; position: absolute;
+  top: -12px; left: 24px; background: var(--bg); padding: 0 12px;
+  font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700;
+  color: var(--accent); letter-spacing: 2px;
+}
+.excel-block h4 { margin-top: 0; }
+.excel-table {
+  width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 12px;
+  background: var(--surface-2); border-radius: 6px; overflow: hidden;
+}
+.excel-table th {
+  background: rgba(0,212,170,0.15); color: var(--accent);
+  padding: 10px 12px; text-align: left; font-weight: 700;
+  font-family: 'JetBrains Mono', monospace; font-size: 10px;
+  text-transform: uppercase; letter-spacing: 1px;
+  border-bottom: 1px solid var(--border);
+}
+.excel-table td {
+  padding: 10px 12px; border-bottom: 1px solid var(--border);
+  color: var(--text); font-size: 12px;
+}
+.excel-table tr:last-child td { border-bottom: none; }
+.excel-scroll { overflow-x: auto; }
+.footer {
+  padding: 60px 0 40px; border-top: 1px solid var(--border);
+  text-align: center; color: var(--text-dim); font-size: 13px; margin-top: 40px;
+}
+@media (max-width: 768px) {
+  .card-grid { grid-template-columns: 1fr; }
+  .container { padding: 0 20px; }
+  .phase { padding: 24px 20px; }
+  .data-table { font-size: 12px; }
+  .data-table th, .data-table td { padding: 8px 10px; }
+  .dialog .ru { padding-left: 0; }
+}
+</style>
+</head>
+<body>
+
+<div class="noise"></div>
+
+<div class="container">
+
+<header class="hero">
+  <div class="hero-badge">Анализ · Пилотный план · Спецификация робота</div>
+  <h1>AI-Native Call Center<br><span>Анализ, план пилота и спецификация</span></h1>
+  <p class="hero-sub">Документ объединяет результаты анализа реальных звонков КЦ за 5 рабочих дней, план пилотного запуска голосового робота за ~3 недели, спецификацию первого сценария и обоснование для следующей фазы.</p>
+</header>
+
+<div class="divider"></div>
+
+<!-- 00 РЕЗЮМЕ -->
+<section>
+  <h2><span class="num">00</span> Резюме</h2>
+
+  <p>Проанализированы 24 аудиозаписи звонков КЦ за 5 рабочих дней. Все записи транскрибированы (немецкий язык). После удаления дубликатов уникальных диалогов — 22.</p>
+
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-label">Уникальных диалогов</div>
+      <div class="card-value">22</div>
+      <div class="card-desc">Из 24 записей. Суммарно ~52 минуты речи. Средняя длительность — 1 мин 50 сек.</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Срок до запуска</div>
+      <div class="card-value">~3 недели</div>
+      <div class="card-desc">14 рабочих дней: подготовка, разработка и внутренние тесты Intwin, совместные тесты с операторами КЦ и доработка.</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Цель пилота</div>
+      <div class="card-value">3 KPI</div>
+      <div class="card-desc">Ноль потерянных звонков на пилотной линии, корректность квалификации &gt; 70%, удовлетворённость клиента &gt; 70%.</div>
+    </div>
+  </div>
+
+  <div class="highlight">
+    <strong>Что предлагаем.</strong> Голосовой робот-перехватчик входящих звонков, который активируется, когда все операторы заняты. Робот принимает звонок, классифицирует обращение, собирает ключевую информацию голосом и записывает в таблицу — оператор перезванивает уже подготовленным. Робот не интегрируется с Comp4, не использует базу данных, не пытается решить вопрос клиента — на пилоте всё работает автономно. После подтверждения работоспособности — переход к фазе 2: автоматизация исходящего обзвона по согласованию визитов техников, где экономический эффект существенно крупнее.
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- 01 АНАЛИЗ -->
+<section>
+  <h2><span class="num">01</span> Что показал анализ</h2>
+
+  <h3>Структура звонков</h3>
+  <p>Распределение по типам активности оказалось важным для постановки задачи робота:</p>
+
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-label">Исходящие оператора</div>
+      <div class="card-value">71%</div>
+      <div class="card-desc">17 из 24. Согласование визитов с клиентами, выбивание доступа в здания, обзвон Hausverwaltung, подтверждения.</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Входящие от клиентов</div>
+      <div class="card-value">21%</div>
+      <div class="card-desc">5 из 24. Первичные обращения с проблемами (4), callback после исходящего (1).</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Внутренние / технические</div>
+      <div class="card-value">8%</div>
+      <div class="card-desc">2 из 24. Координация с техниками: перестановка заданий, обсуждение нагрузки.</div>
+    </div>
+  </div>
+
+  <div class="highlight-orange">
+    <strong>Важное уточнение по выборке.</strong> Записи фиксируют только звонки, которые операторы успели взять. ~626 потерянных входящих в неделю, ради которых задумывается пилот, физически не попали в выборку — их никто не записал. Сценарии для робота-перехватчика мы реконструируем по тем 5 входящим от клиентов, которые в записях есть, и проверяем гипотезы в первые дни тестов с операторами КЦ.
+  </div>
+
+  <h3>Шесть типовых сценариев</h3>
+  <p>Из 22 уникальных диалогов выделяются 6 типовых сценариев. Для каждого — оценка: подходит ли он для робота на этапе пилота.</p>
+
+  <table class="data-table">
+    <thead>
+      <tr><th>#</th><th>Сценарий</th><th>Доля</th><th>Куда относится</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="mono">1</td>
+        <td><strong>Исходящий: согласование/перенос визита техника</strong><br><span style="color: var(--text-dim); font-size: 13px;">Оператор звонит клиенту, предлагает время визита, итеративно подбирает слот.</span></td>
+        <td class="mono">41%</td>
+        <td><span class="tag tag-orange">Фаза 2</span></td>
+      </tr>
+      <tr>
+        <td class="mono">2</td>
+        <td><strong>Входящий: первичное обращение клиента с проблемой</strong><br><span style="color: var(--text-dim); font-size: 13px;">«У меня не работает интернет / телевизор / телефон». Основной случай работы бота на пилоте.</span></td>
+        <td class="mono">~18%</td>
+        <td><span class="tag tag-green">Пилот ✓</span></td>
+      </tr>
+      <tr>
+        <td class="mono">3</td>
+        <td><strong>Входящий: callback после исходящего звонка оператора</strong><br><span style="color: var(--text-dim); font-size: 13px;">Оператор пытался дозвониться, клиент перезванивает. Редкий случай, но обрабатывается тем же скриптом.</span></td>
+        <td class="mono">~5%</td>
+        <td><span class="tag tag-green">Пилот ✓</span></td>
+      </tr>
+      <tr>
+        <td class="mono">4</td>
+        <td><strong>Исходящий: получение доступа в здание</strong><br><span style="color: var(--text-dim); font-size: 13px;">Оператор обзванивает Hausverwaltung, ищет Hausmeister'а, оставляет email-запросы. Контекстная задача с цепочкой эскалаций.</span></td>
+        <td class="mono">14%</td>
+        <td><span class="tag tag-gray">Оператор</span></td>
+      </tr>
+      <tr>
+        <td class="mono">5</td>
+        <td><strong>Внутренний: координация с техниками</strong><br><span style="color: var(--text-dim); font-size: 13px;">Перестановка заданий, обсуждение маршрута. Один звонок — 9,5 минут диктовки номеров заявок.</span></td>
+        <td class="mono">14%</td>
+        <td><span class="tag tag-blue">RPA</span></td>
+      </tr>
+      <tr>
+        <td class="mono">6</td>
+        <td><strong>Входящий: гневный клиент / угроза расторжения</strong><br><span style="color: var(--text-dim); font-size: 13px;">Маркеры: «kündige», «Vertrag», «Beschwerde», агрессивный тон.</span></td>
+        <td class="mono">~5%</td>
+        <td><span class="tag tag-red">Эскалация</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="highlight">
+    <strong>Что робот делает на пилоте:</strong> сценарии 2, 3 и обработка эскалаций по сценарию 6.<br>
+    <strong>Что переносится на фазу 2:</strong> сценарий 1 (исходящий обзвон по согласованию визитов).<br>
+    <strong>Что не для робота:</strong> сценарий 4 — слишком ситуативен, требует настойчивости и контекстных решений оператора. Сценарий 5 — задача для RPA или интеграции с Comp4, не для голосового бота.
+  </div>
+
+  <h3>Важное наблюдение: бот создаёт workflow, которого сегодня нет</h3>
+  <p>В выборке нет ни одного звонка, где оператор перезванивал бы клиенту, который ранее звонил и не дозвонился. Причина простая: в текущем процессе такого workflow нет. 626 потерянных в неделю — это потери навсегда. Кто-то перезванивает сам, кто-то нет.</p>
+  <p>Робот создаёт этот процесс впервые: <strong>клиент дозванивается всегда (хотя бы до робота) → робот собирает данные → оператор перезванивает</strong>. Это и есть главный механизм устранения потерь.</p>
+</section>
+
+<div class="divider"></div>
+
+<!-- 02 ПИЛОТ -->
+<section>
+  <h2><span class="num">02</span> Пилот: что за робот, что он делает</h2>
+
+  <div class="phase" data-phase="Пилот">
+    <div class="phase-title">Голосовой робот-перехватчик входящих звонков</div>
+
+    <p style="font-size: 17px;">Робот подключается к телефонии колл-центра как отдельная SIP-линия и работает в режиме перелива: когда все операторы заняты или линия перегружена, входящий звонок переадресуется на робота вместо потери. На пилоте только этот режим — другие сценарии запуска (например, передача роботу инициативы для исходящего обзвона) рассматриваются как следующие фазы.</p>
+
+    <p>Для запуска пилота не требуется интеграция с Comp4 / INCAS и не требуется база данных. Робот работает автономно и складывает результаты в общую таблицу, которую видят операторы.</p>
+
+    <p><strong>Голос робота — синтезированный.</strong> Робот говорит не записанным человеческим голосом, а синтезом речи (TTS). Современные TTS для немецкого языка звучат естественно — большинство клиентов в первые секунды не отличают синтез от человека. Конкретный голос (мужской / женский, тембр, темп) выбирается совместно с заказчиком до старта разработки: команда Intwin предложит 2–3 варианта с примерами на немецком, и заказчик утверждает финальный вариант.</p>
+  </div>
+
+  <h3>Что робот делает в каждом звонке</h3>
+
+  <div class="flow">
+    <div class="flow-step">
+      <div class="flow-num">1</div>
+      <div class="flow-content">
+        <strong>Принимает звонок и приветствует</strong>
+        <p>Сообщает, что все операторы заняты, представляется как виртуальный ассистент, который примет заявку для перезвона.</p>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-num">2</div>
+      <div class="flow-content">
+        <strong>Определяет тип звонящего по содержанию первой реплики</strong>
+        <p>Без прямого вопроса «кто вы». Робот понимает по тому, что и как сказал собеседник: клиент с проблемой, техник на выезде, представитель управляющей компании. Дальше идёт по соответствующей ветке скрипта.</p>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-num">3</div>
+      <div class="flow-content">
+        <strong>Собирает обязательные поля</strong>
+        <p>Имя, адрес или номер заявки, тип неисправности, удобное время — то, без чего оператор не сможет перезвонить и продолжить работу.</p>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-num">4</div>
+      <div class="flow-content">
+        <strong>Распознаёт триггеры эскалации</strong>
+        <p>Если клиент агрессивен, говорит о расторжении договора или об экстренной аварии — робот не задерживает диалог и помечает звонок как приоритетный для оператора.</p>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-num">5</div>
+      <div class="flow-content">
+        <strong>Подтверждает приём заявки</strong>
+        <p>Зачитывает ключевые данные обратно для подтверждения, обещает перезвон в течение оговорённого времени, прощается.</p>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-num">6</div>
+      <div class="flow-content">
+        <strong>Выгружает данные в Excel-таблицу</strong>
+        <p>Все собранные данные автоматически попадают в общую Excel-таблицу (или Google Sheets). Каждый звонок — одна строка: время звонка, номер телефона звонящего, тип обращения, имя, адрес, краткое описание проблемы, удобное время перезвона, приоритет.</p>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-num">7</div>
+      <div class="flow-content">
+        <strong>Операторы перезванивают по таблице</strong>
+        <p>Освободившийся оператор открывает Excel-таблицу, видит все принятые роботом звонки в реальном времени и перезванивает в порядке приоритета. На каждый перезвон уходит 60–90 секунд вместо 2–3 минут разговора с нуля — вся информация уже собрана и структурирована.</p>
+      </div>
+    </div>
+  </div>
+
+  <h3>Логика диалога — наглядно</h3>
+  <p>Тот же процесс на одной схеме: от приёма звонка до записи результата. Светло-голубые блоки — состояния диалога, оранжевые ромбы — точки принятия решений, зелёный — финальное состояние с записью в таблицу.</p>
+
+  <div class="flowchart-block">
+    <svg viewBox="0 0 720 760" xmlns="http://www.w3.org/2000/svg" style="font-family: 'Outfit', sans-serif;">
+      <defs>
+        <marker id="arrow-light" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+          <path d="M0,0 L0,6 L9,3 z" fill="#8888a0"/>
+        </marker>
+      </defs>
+
+      <ellipse cx="360" cy="30" rx="100" ry="22" fill="#1a1a28" stroke="#00d4aa" stroke-width="1.5"/>
+      <text x="360" y="36" text-anchor="middle" fill="#00d4aa" font-size="12" font-weight="700">ВХОДЯЩИЙ ЗВОНОК</text>
+
+      <line x1="360" y1="52" x2="360" y2="82" stroke="#8888a0" stroke-width="1.5" marker-end="url(#arrow-light)"/>
+
+      <rect x="240" y="87" width="240" height="50" rx="6" fill="#0d2438" stroke="#00a8ff" stroke-width="1.5"/>
+      <text x="360" y="107" text-anchor="middle" font-size="12" font-weight="700" fill="#00a8ff">Приветствие</text>
+      <text x="360" y="124" text-anchor="middle" font-size="10" fill="#8888a0">бот здоровается, объясняет ситуацию</text>
+
+      <line x1="360" y1="137" x2="360" y2="167" stroke="#8888a0" stroke-width="1.5" marker-end="url(#arrow-light)"/>
+
+      <rect x="240" y="172" width="240" height="50" rx="6" fill="#0d2438" stroke="#00a8ff" stroke-width="1.5"/>
+      <text x="360" y="192" text-anchor="middle" font-size="12" font-weight="700" fill="#00a8ff">Открытый вопрос</text>
+      <text x="360" y="209" text-anchor="middle" font-size="10" fill="#8888a0">«Расскажите, в чём дело?» — слушает</text>
+
+      <line x1="360" y1="222" x2="360" y2="252" stroke="#8888a0" stroke-width="1.5" marker-end="url(#arrow-light)"/>
+
+      <polygon points="360,257 480,312 360,367 240,312" fill="#2a1f0a" stroke="#ff6b35" stroke-width="1.5"/>
+      <text x="360" y="307" text-anchor="middle" font-size="12" font-weight="700" fill="#ff6b35">Классификация</text>
+      <text x="360" y="322" text-anchor="middle" font-size="10" fill="#ffcc00">по содержанию реплики</text>
+
+      <line x1="240" y1="312" x2="120" y2="395" stroke="#8888a0" stroke-width="1.5" marker-end="url(#arrow-light)"/>
+      <text x="155" y="365" font-size="10" fill="#8888a0" font-style="italic">клиент</text>
+
+      <line x1="360" y1="367" x2="360" y2="395" stroke="#8888a0" stroke-width="1.5" marker-end="url(#arrow-light)"/>
+      <text x="370" y="385" font-size="10" fill="#8888a0" font-style="italic">техник</text>
+
+      <line x1="480" y1="312" x2="600" y2="395" stroke="#8888a0" stroke-width="1.5" marker-end="url(#arrow-light)"/>
+      <text x="555" y="365" font-size="10" fill="#8888a0" font-style="italic">иное / неясно</text>
+
+      <rect x="20" y="400" width="200" height="55" rx="6" fill="#0d2818" stroke="#00e676" stroke-width="1.5"/>
+      <text x="120" y="420" text-anchor="middle" font-size="12" font-weight="700" fill="#00e676">Ветка КЛИЕНТ</text>
+      <text x="120" y="436" text-anchor="middle" font-size="9" fill="#8888a0">имя, адрес, тип проблемы,</text>
+      <text x="120" y="448" text-anchor="middle" font-size="9" fill="#8888a0">описание, время для перезвона</text>
+
+      <rect x="260" y="400" width="200" height="55" rx="6" fill="#2a1f0a" stroke="#ffcc00" stroke-width="1.5"/>
+      <text x="360" y="420" text-anchor="middle" font-size="12" font-weight="700" fill="#ffcc00">Ветка ТЕХНИК</text>
+      <text x="360" y="436" text-anchor="middle" font-size="9" fill="#8888a0">имя, фирма, № заявки,</text>
+      <text x="360" y="448" text-anchor="middle" font-size="9" fill="#8888a0">причина, срочность</text>
+
+      <rect x="500" y="400" width="200" height="55" rx="6" fill="#1a1a28" stroke="#8888a0" stroke-width="1.5"/>
+      <text x="600" y="420" text-anchor="middle" font-size="12" font-weight="700" fill="#8888a0">Ветка ОБЩАЯ</text>
+      <text x="600" y="436" text-anchor="middle" font-size="9" fill="#8888a0">имя, контакт, тема</text>
+      <text x="600" y="448" text-anchor="middle" font-size="9" fill="#8888a0">+ метка для оператора</text>
+
+      <line x1="120" y1="455" x2="280" y2="510" stroke="#8888a0" stroke-width="1.5" marker-end="url(#arrow-light)"/>
+      <line x1="360" y1="455" x2="360" y2="510" stroke="#8888a0" stroke-width="1.5" marker-end="url(#arrow-light)"/>
+      <line x1="600" y1="455" x2="440" y2="510" stroke="#8888a0" stroke-width="1.5" marker-end="url(#arrow-light)"/>
+
+      <rect x="240" y="515" width="240" height="50" rx="6" fill="#0d2438" stroke="#00a8ff" stroke-width="1.5"/>
+      <text x="360" y="535" text-anchor="middle" font-size="12" font-weight="700" fill="#00a8ff">Подтверждение данных</text>
+      <text x="360" y="552" text-anchor="middle" font-size="10" fill="#8888a0">бот зачитывает собранные данные</text>
+
+      <line x1="360" y1="565" x2="360" y2="595" stroke="#8888a0" stroke-width="1.5" marker-end="url(#arrow-light)"/>
+
+      <polygon points="360,600 460,640 360,680 260,640" fill="#2a1f0a" stroke="#ff6b35" stroke-width="1.5"/>
+      <text x="360" y="638" text-anchor="middle" font-size="11" font-weight="700" fill="#ff6b35">Подтверждено?</text>
+
+      <line x1="260" y1="640" x2="200" y2="640" stroke="#8888a0" stroke-width="1.5"/>
+      <text x="220" y="630" font-size="10" fill="#8888a0" font-style="italic">нет</text>
+      <line x1="200" y1="640" x2="200" y2="540" stroke="#8888a0" stroke-width="1.5"/>
+      <line x1="200" y1="540" x2="240" y2="540" stroke="#8888a0" stroke-width="1.5" marker-end="url(#arrow-light)"/>
+
+      <line x1="360" y1="680" x2="360" y2="710" stroke="#8888a0" stroke-width="1.5" marker-end="url(#arrow-light)"/>
+      <text x="370" y="700" font-size="10" fill="#8888a0" font-style="italic">да</text>
+
+      <rect x="200" y="715" width="320" height="40" rx="6" fill="#0d2818" stroke="#00e676" stroke-width="1.5"/>
+      <text x="360" y="732" text-anchor="middle" font-size="12" font-weight="700" fill="#00e676">Прощание + запись в Excel-таблицу</text>
+      <text x="360" y="747" text-anchor="middle" font-size="10" fill="#8888a0">оператор перезванивает по строкам из таблицы</text>
+    </svg>
+    <div class="caption">Схема диалога робота — от приёма звонка до записи в таблицу. Эта же логика реализуется в технической спецификации для разработчиков.</div>
+  </div>
+
+  <h3>Две ветки квалификации</h3>
+  <p>В первой реплике робот определяет, кто звонит, и переключается в соответствующий мини-скрипт. Каждая ветка собирает свой набор полей. Если позвонит кто-то, кто не подходит ни под одну из веток (например, представитель управляющей компании или сторонняя организация), робот корректно зафиксирует обращение в категории «другое» и пометит его для эскалации оператору.</p>
+
+  <div class="branches">
+    <div class="branch">
+      <div class="branch-title"><div class="icon">👤</div> Клиент Vodafone</div>
+      <ul>
+        <li><strong>Имя</strong> и фамилия</li>
+        <li><strong>Адрес</strong> (улица + номер дома) или номер заявки</li>
+        <li><strong>Тип проблемы:</strong> ТВ / Интернет / Телефон / другое</li>
+        <li><strong>Краткое описание</strong> ситуации (свободная форма)</li>
+        <li><strong>Удобное время</strong> для перезвона</li>
+      </ul>
+    </div>
+    <div class="branch">
+      <div class="branch-title"><div class="icon">🔧</div> Техник на выезде</div>
+      <ul>
+        <li><strong>Имя</strong> техника</li>
+        <li><strong>Фирма</strong>, в которой работает</li>
+        <li><strong>Номер заявки</strong>, по которой звонит</li>
+        <li><strong>Причина обращения:</strong> подтверждение, перенос, проблема с доступом, нужна помощь</li>
+        <li><strong>Срочность</strong> (на объекте сейчас / общий вопрос)</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>Пример диалога</h3>
+  <p>Это иллюстрация логики работы робота, а не готовый сценарий. Финальные формулировки прорабатываются на этапе согласования скрипта — задача в том, чтобы диалог звучал естественно и не вызывал у клиента ощущения общения с примитивным IVR. Реплики приведены на немецком языке, перевод — для понимания.</p>
+
+  <div class="dialog">
+    <div class="turn">
+      <span class="speaker speaker-bot">BOT:</span>
+      <span class="de">«Service Center im Auftrag der Vodafone, guten Tag. Unsere Mitarbeiter sind im Moment alle im Gespräch. Damit wir Sie schnellstmöglich zurückrufen können, nehme ich Ihre Anfrage kurz auf. Worum geht es?»</span>
+      <span class="ru">Сервисный центр Vodafone, здравствуйте. Все наши сотрудники сейчас заняты. Чтобы мы могли как можно скорее вам перезвонить, я коротко запишу ваше обращение. Расскажите, пожалуйста, в чём дело.</span>
+    </div>
+    <div class="turn">
+      <span class="speaker">CLIENT:</span>
+      <span class="de">«Ja, hallo, bei mir geht das Internet seit gestern Abend nicht.»</span>
+      <span class="ru">Да, здравствуйте, у меня со вчерашнего вечера не работает интернет.</span>
+    </div>
+    <div class="turn">
+      <span class="speaker speaker-bot">BOT:</span>
+      <span class="de">«Das tut mir leid. Damit ein Kollege Sie zurückrufen kann, brauche ich kurz Ihren Namen und Ihre Adresse.»</span>
+      <span class="ru">Сожалею. Чтобы коллега смог вам перезвонить, мне нужно ваше имя и адрес.</span>
+    </div>
+    <div class="turn">
+      <span class="speaker">CLIENT:</span>
+      <span class="de">«Müller, Hauptstraße 15 in München.»</span>
+      <span class="ru">Мюллер, Хауптштрассе 15, Мюнхен.</span>
+    </div>
+    <div class="turn">
+      <span class="speaker speaker-bot">BOT:</span>
+      <span class="de">«Danke, Herr Müller. Und wann erreichen wir Sie heute am besten?»</span>
+      <span class="ru">Спасибо, господин Мюллер. И когда вам сегодня удобнее всего перезвонить?</span>
+    </div>
+    <div class="turn">
+      <span class="speaker">CLIENT:</span>
+      <span class="de">«Ab vierzehn Uhr bin ich zu Hause.»</span>
+      <span class="ru">С 14 часов я дома.</span>
+    </div>
+    <div class="turn">
+      <span class="speaker speaker-bot">BOT:</span>
+      <span class="de">«Alles klar. Ich habe notiert: Internet-Störung seit gestern Abend, Hauptstraße 15 in München, Rückruf ab vierzehn Uhr. Ein Kollege meldet sich bei Ihnen. Vielen Dank und einen schönen Tag!»</span>
+      <span class="ru">Хорошо. Я записал: неисправность интернета со вчерашнего вечера, Хауптштрассе 15 в Мюнхене, перезвон с 14 часов. С вами свяжется коллега. Спасибо и хорошего дня!</span>
+    </div>
+  </div>
+
+  <p>В этом примере робот не задаёт прямых вопросов «вы клиент или техник» — классификация происходит по содержанию первой реплики. Если бы клиент сказал «hier ist Edison, Techniker von Atlas Connect», бот переключился бы в ветку для техника. Это то, что отличает хороший голосовой бот от примитивного IVR.</p>
+
+  <div class="excel-block">
+    <h4>Куда попадают данные после звонка</h4>
+    <p>Главный результат работы робота — это <strong>Excel-таблица (или Google Sheets)</strong>, в которую автоматически выгружается каждый принятый звонок. Оператор открывает таблицу, видит все обращения в реальном времени и перезванивает в порядке приоритета. Никакой отдельной системы, никакого нового интерфейса — только привычная всем таблица, с которой умеют работать все.</p>
+
+    <p style="color: var(--text-dim); font-size: 13px; margin-top: 16px;">Пример того, как выглядит строка в таблице после звонка из примера выше:</p>
+
+    <div class="excel-scroll">
+    <table class="excel-table">
+      <thead>
+        <tr>
+          <th>Время</th>
+          <th>Телефон</th>
+          <th>Тип</th>
+          <th>Имя</th>
+          <th>Адрес</th>
+          <th>Проблема</th>
+          <th>Описание</th>
+          <th>Перезвон</th>
+          <th>Приоритет</th>
+          <th>Статус</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="mono">10:34</td>
+          <td class="mono">+49 89 ...</td>
+          <td>Клиент</td>
+          <td>Müller</td>
+          <td>Hauptstraße 15, München</td>
+          <td>Internet</td>
+          <td>Не работает со вчерашнего вечера</td>
+          <td class="mono">с 14:00</td>
+          <td><span class="tag tag-blue">обычный</span></td>
+          <td><span class="tag tag-orange">в работе</span></td>
+        </tr>
+        <tr>
+          <td class="mono">10:41</td>
+          <td class="mono">+49 30 ...</td>
+          <td>Техник</td>
+          <td>Edison Osmani</td>
+          <td>—</td>
+          <td>—</td>
+          <td>Atlas Connect, перенос заявок 009-0412...</td>
+          <td class="mono">сейчас</td>
+          <td><span class="tag tag-orange">срочно</span></td>
+          <td><span class="tag tag-green">обработан</span></td>
+        </tr>
+        <tr>
+          <td class="mono">10:47</td>
+          <td class="mono">+49 89 ...</td>
+          <td>Клиент</td>
+          <td>Krasniqi</td>
+          <td>Brüsseler Str. 18</td>
+          <td>—</td>
+          <td>Угрожает расторжением договора, ждёт техника</td>
+          <td class="mono">срочно</td>
+          <td><span class="tag tag-red">эскалация</span></td>
+          <td><span class="tag tag-orange">в работе</span></td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+
+    <p style="margin-top: 16px; margin-bottom: 0;">Колонка «Статус» обновляется оператором после перезвона. Это позволяет видеть, какие звонки уже обработаны, а какие ещё ждут. Колонка «Приоритет» проставляется роботом автоматически на основе содержания диалога: звонки от техников на объекте и эскалации идут с пометкой срочности, обычные обращения клиентов — стандартным приоритетом.</p>
+  </div>
+
+  <p>Длительность такого звонка — около минуты. Робот не пытается решать задачу, он только её фиксирует. Этого достаточно, чтобы устранить потерю звонка и подготовить оператора к быстрому перезвону.</p>
+
+  <h3>Нужна ли роботу база данных?</h3>
+
+  <div class="qa-block">
+    <div class="qa-q">Использует ли робот какие-либо данные о клиенте, заявках или истории?</div>
+    <div class="qa-a">
+      <p><strong>На пилоте — нет.</strong> Робот не подключён к Comp4, не имеет своей базы данных, не «узнаёт» позвонившего по номеру телефона и не может поднять заявку по номеру. Всю необходимую информацию робот <strong>спрашивает у звонящего голосом</strong> и записывает в общую таблицу для оператора.</p>
+      <p>Это сознательное упрощение, которое делает запуск пилота возможным за ~3 недели:</p>
+      <ul>
+        <li>Нет интеграционной работы с Comp4 — нет согласований с Circet, нет рисков по доступу</li>
+        <li>Нет хранилища персональных данных у бота — проще GDPR-режим</li>
+        <li>Нет зависимости от качества данных в Comp4 — робот работает в «чистом поле»</li>
+      </ul>
+      <p>На фазе 2 или фазе 3 робот может быть подключён к Comp4 (через RPA или API), что позволит ему: проверять статус заявки по номеру, подтягивать имя клиента по номеру телефона, видеть историю предыдущих визитов. Но это уже не пилот — это масштабирование.</p>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- 03 МЕТРИКИ -->
+<section>
+  <h2><span class="num">03</span> Что измеряем на пилоте</h2>
+
+  <p>Пилот — это эксперимент с измеримым результатом. На старте фиксируется базовый замер по текущему состоянию КЦ, после запуска — те же метрики собираются по части трафика, которую обслуживает робот. Сравнение делается ежедневно.</p>
+
+  <table class="data-table">
+    <thead>
+      <tr><th>Метрика</th><th>Сейчас</th><th>Цель пилота</th><th>Как считаем</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Потерянных звонков на пилотной линии</strong></td>
+        <td class="mono red">~626 / нед</td>
+        <td class="mono green">0</td>
+        <td>Робот принимает каждый звонок. Потерь по определению нет.</td>
+      </tr>
+      <tr>
+        <td><strong>Доступность пилотной линии</strong></td>
+        <td class="mono red">75,4%</td>
+        <td class="mono green">100%</td>
+        <td>Все звонки берёт либо оператор, либо робот.</td>
+      </tr>
+      <tr>
+        <td><strong>Корректность квалификации</strong></td>
+        <td class="mono">—</td>
+        <td class="mono green">> 70%</td>
+        <td>Оператор после перезвона помечает: были ли данные собраны корректно. Стартовая планка для пилота. Целевое значение после месяца работы и дообучения модели — 85%+.</td>
+      </tr>
+      <tr>
+        <td><strong>Время оператора на 1 контакт (с учётом подготовки)</strong></td>
+        <td class="mono">163 сек</td>
+        <td class="mono green">~80 сек</td>
+        <td>От момента, когда оператор берёт строку из таблицы, до фиксации результата перезвона.</td>
+      </tr>
+      <tr>
+        <td><strong>Доля эскалаций (бот → человек)</strong></td>
+        <td class="mono">—</td>
+        <td class="mono">< 20%</td>
+        <td>Сколько звонков робот корректно передал оператору вместо квалификации.</td>
+      </tr>
+      <tr>
+        <td><strong>Среднее время до перезвона оператором</strong></td>
+        <td class="mono">—</td>
+        <td class="mono green">&lt; 20 мин</td>
+        <td>От момента появления строки в таблице до момента, когда оператор начал перезванивать. Зависит от организации работы КЦ, не от робота.</td>
+      </tr>
+      <tr>
+        <td><strong>Удовлетворённость клиента</strong></td>
+        <td class="mono">—</td>
+        <td class="mono green">> 70%</td>
+        <td>Опрос после перезвона: «решён ли ваш вопрос», 1 вопрос, 5 баллов.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="highlight">
+    <strong>Главный критерий успеха — три KPI одновременно:</strong>
+    <ul style="margin-top: 10px;">
+      <li><strong>Ноль потерянных звонков</strong> на пилотной линии — робот принимает все обращения, никто не остаётся без ответа</li>
+      <li><strong>Корректность квалификации &gt; 70%</strong> — оператор после перезвона подтверждает, что данные собраны правильно и пригодны для работы. Это стартовая планка для пилота. После месяца работы и дообучения модели целевое значение — 85%+.</li>
+      <li><strong>Удовлетворённость клиента &gt; 70%</strong> — клиент после перезвона оператора подтверждает, что его вопрос решён или взят в работу</li>
+    </ul>
+    <p style="margin-top: 12px; margin-bottom: 0;">Принять все звонки технически легко. Гораздо важнее — принять их так, чтобы оператор смог продолжить работу, а клиент остался доволен. Все три метрики должны быть выполнены одновременно — это и есть подтверждение, что робот реально помогает, а не просто механически разгребает очередь.</p>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- 04 ПЛАН -->
+<section>
+  <h2><span class="num">04</span> План проекта</h2>
+
+  <div class="roadmap">
+
+    <div class="roadmap-item">
+      <div class="roadmap-marker">1</div>
+      <div class="roadmap-day">Дни 1–2</div>
+      <div class="roadmap-title">Подготовка</div>
+      <div class="roadmap-desc">Согласование скриптов и ТЗ, выделение SIP-номера, настройка таблицы для операторов, согласование маршрутизации трафика.</div>
+    </div>
+
+    <div class="roadmap-item">
+      <div class="roadmap-marker">2</div>
+      <div class="roadmap-day">Дни 3–9 · 7 рабочих дней</div>
+      <div class="roadmap-title">Разработка и внутренние тесты Intwin</div>
+      <div class="roadmap-desc">Программирование диалоговых веток, настройка распознавания и синтеза немецкой речи, конфигурация интеграции с таблицей, тестирование на демо-звонках командой Intwin. Этап заканчивается рабочим прототипом, готовым к показу.</div>
+    </div>
+
+    <div class="roadmap-item roadmap-gate">
+      <div class="roadmap-marker">✓</div>
+      <div class="roadmap-day">Конец дня 9</div>
+      <div class="roadmap-title">Контрольная точка</div>
+      <div class="roadmap-desc">Внутреннее демо команде Intwin и контактному лицу со стороны КЦ. Решение «go / no-go» на переход к совместным тестам. Если прототип не готов — закладываем 1–2 дня доработки и сдвигаем следующий этап.</div>
+    </div>
+
+    <div class="roadmap-item">
+      <div class="roadmap-marker">3</div>
+      <div class="roadmap-day">Дни 10–14 · 5 рабочих дней</div>
+      <div class="roadmap-title">Совместные тесты с КЦ и доработка</div>
+      <div class="roadmap-desc">Совместное тестирование с операторами КЦ — в текстовом и голосовом режиме. Доработка логики и формулировок по обратной связи. Финальная проверка скрипта и качества распознавания на реальных голосах.</div>
+    </div>
+
+    <div class="roadmap-item">
+      <div class="roadmap-marker">4</div>
+      <div class="roadmap-day">День 15+</div>
+      <div class="roadmap-title">Запуск на боевую линию</div>
+      <div class="roadmap-desc">Робот включается в режиме перелива. Перехватывает звонки, на которые операторы не успевают ответить. Начинается ежедневный сбор метрик.</div>
+    </div>
+
+    <div class="roadmap-item">
+      <div class="roadmap-marker">5</div>
+      <div class="roadmap-day">После запуска</div>
+      <div class="roadmap-title">Сравнение результатов и принятие решения</div>
+      <div class="roadmap-desc">Ежедневный мониторинг метрик. Сводный отчёт через 1–2 недели после старта. Решение о масштабировании, доработке или переходе к фазе 2 — по правилу из раздела 05.</div>
+    </div>
+
+  </div>
+
+  <h3>Что нужно от клиента для старта</h3>
+
+  <ul>
+    <li><strong>Согласование скрипта и ТЗ</strong> — финальные тексты приветствий и формулировок на немецком языке</li>
+    <li><strong>Доступ к телефонии</strong> — выделение SIP-номера и настройка маршрутизации перелива</li>
+    <li><strong>Контактное лицо со стороны КЦ</strong> — оператор или супервайзер, который может протестировать робота в текстовом и голосовом формате на этапе совместных тестов (дни 8–12)</li>
+    <li><strong>Процессная договорённость о времени перезвона</strong> — операторы перезванивают по строкам из таблицы в течение оговорённого SLA (рекомендуем 15–20 минут с момента звонка). Это критично: без быстрого перезвона ценность пилота для клиента почти полностью теряется (см. блок ниже)</li>
+  </ul>
+
+  <div class="highlight-orange">
+    <strong>Почему SLA на перезвон — это половина успеха пилота.</strong> Робот может технически безупречно принять все звонки, корректно квалифицировать их и аккуратно записать в таблицу — но если оператор перезвонит клиенту через 3 часа, а не через 15 минут, клиент к этому моменту либо решит проблему сам, либо уйдёт к конкурентам, либо просто будет очень недоволен «обещанным быстрым перезвоном». Технический успех робота не равен бизнес-успеху пилота — между ними находится процессная цепочка на стороне КЦ.
+    <p style="margin-top: 12px;"><strong>Откуда возьмётся время на быстрый перезвон.</strong> Сегодня оператор тратит на каждый принятый звонок ~163 секунды живого разговора с клиентом — приветствие, выяснение проблемы, сбор данных, диалог. После запуска робота холодный приём звонка делает бот, а оператор работает уже с готовой записью в таблице. Перезвон с собранным контекстом занимает ~60–90 секунд: «Здравствуйте, господин Мюллер, перезваниваю по вашему обращению об интернете — давайте согласуем визит». Это в 2–3 раза быстрее. Освободившиеся 60–90 секунд на каждом контакте — и есть тот ресурс, который позволяет соблюдать SLA на перезвон без найма новых людей. Пилот не добавляет операторам нагрузки — он перераспределяет её.</p>
+    <p style="margin-bottom: 0;">Поэтому до запуска рекомендуется зафиксировать внутреннее правило: «строки из таблицы робота обрабатываются в первую очередь, время до перезвона не должно превышать 15–20 минут».</p>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- 04.5 ЧТО ПОСЛЕ ПИЛОТА -->
+<section>
+  <h2><span class="num">05</span> Что происходит после пилота</h2>
+
+  <p>Пилот заканчивается через ~3 недели после старта подготовки, но робот не выключается. Если по итогам пилота KPI выполнены — робот-перехватчик переходит в постоянный режим работы и продолжает обрабатывать потерянные звонки на пилотной линии. Это базовая модель: пилот плавно переходит в эксплуатацию, без отдельного «второго запуска».</p>
+
+  <h3>Три возможных сценария по итогам пилота</h3>
+
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-label">Сценарий A · Все KPI выполнены</div>
+      <div class="card-value" style="font-size: 28px;">Эксплуатация</div>
+      <div class="card-desc">Робот переходит в постоянный режим. Параллельно начинаем подготовку к фазе 2 — автоматизации исходящего обзвона. Расширение зоны покрытия робота на полный объём входящего трафика.</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Сценарий B · Часть KPI выполнена</div>
+      <div class="card-value" style="font-size: 28px;">Доработка</div>
+      <div class="card-desc">Например, ноль потерь и хорошая удовлетворённость, но корректность квалификации на старте 65%. Закладываем 2–4 недели на дообучение модели и доработку скриптов на собранных за пилот данных, после чего повторный замер.</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Сценарий C · KPI не выполнены</div>
+      <div class="card-value" style="font-size: 28px;">Разбор</div>
+      <div class="card-desc">Совместный разбор причин: что именно не сработало — технология, сценарий, процесс перезвона. По итогам решаем: переделывать подход, отложить или закрыть. Robot выключается, данные пилота остаются у клиента.</div>
+    </div>
+  </div>
+
+  <div class="highlight">
+    <strong>Правило принятия решения.</strong> Чтобы решение по итогам пилота не превращалось в эмоциональный торг, оно фиксируется заранее. <strong>Сценарий A</strong> — выполнены все три KPI (ноль потерь, корректность &gt; 70%, удовлетворённость &gt; 70%) и среднее время до перезвона &lt; 20 минут. <strong>Сценарий B</strong> — выполнены два из трёх KPI. <strong>Сценарий C</strong> — выполнен один или ни одного. Это даёт обеим сторонам понятный язык для разговора по итогам пилота.
+  </div>
+
+  <h3>Что остаётся у клиента в любом случае</h3>
+  <p>Даже если по итогам пилота принимается решение не продолжать, у клиента остаётся то, чего раньше не было:</p>
+  <ul>
+    <li><strong>Реальные данные о том, кто звонил на потерянные звонки</strong> — записи в таблице за время работы робота. До пилота этих данных не существовало.</li>
+    <li><strong>Понимание профиля входящего трафика</strong> в моменты перегрузки: время суток, тип обращений, доля экстренных, доля повторных</li>
+    <li><strong>Базовая статистика для решения о том, что делать с КЦ дальше</strong> — нанимать ещё операторов, перестраивать график смен, или возвращаться к идее автоматизации, но другим путём</li>
+  </ul>
+</section>
+
+<div class="divider"></div>
+
+<!-- 06 ФАЗА 2 -->
+<section>
+  <h2><span class="num">06</span> Фаза 2: автоматизация исходящего обзвона</h2>
+
+  <p>После успешного пилота естественный следующий шаг — расширение робота на самую массовую активность КЦ: согласование визитов техников по исходящим звонкам. Этот сценарий по нашим данным занимает ~41% всех звонков КЦ — то есть в нём заметно больше потенциального экономического эффекта, чем в перехвате потерянных входящих.</p>
+
+  <div class="phase phase-orange" data-phase="Фаза 2 · После пилота">
+    <div class="phase-title">Тот же робот, исходящий режим</div>
+
+    <p>Технически это тот же самый бот, что и на пилоте. Меняется только триггер: вместо «принять входящий звонок, на который не ответил оператор» — «позвонить клиенту по заявке из очереди». Скрипт диалога ещё проще: оператор знает заявку, знает время, знает клиента, остаётся только согласовать слот.</p>
+
+    <p>Интеграция с Comp4 для фазы 2 не требуется — список заявок может выгружаться раз в день в Excel (это рутинная операция, которая уже выполняется), робот забирает оттуда задачи и возвращает результаты обзвона в ту же таблицу.</p>
+  </div>
+
+  <h3>Почему фаза 2 экономически крупнее пилота</h3>
+
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-label">Объём активности</div>
+      <div class="card-value card-value-orange">41%</div>
+      <div class="card-desc">Доля времени КЦ, уходящая на исходящие звонки по согласованию визитов. По нашей выборке — самая частая операция, в ~10 раз больше по объёму, чем потерянные входящие.</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Сложность сценария</div>
+      <div class="card-value card-value-orange">проще</div>
+      <div class="card-desc">Исходящий бот всегда проще входящего: инициатива на стороне робота, контекст известен заранее, нет необходимости в классификации звонящего.</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Скорость запуска</div>
+      <div class="card-value card-value-orange">1–2 нед</div>
+      <div class="card-desc">После пилота переиспользуется вся инфраструктура: телефония, синтез речи, распознавание, диалоговый движок. Только новый скрипт и новый источник данных.</div>
+    </div>
+  </div>
+
+  <h3>Грубая оценка экономического эффекта</h3>
+
+  <table class="data-table">
+    <thead>
+      <tr><th>Параметр</th><th>Пилот (фаза 1)</th><th>Фаза 2</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Что автоматизируется</td><td>Перехват потерянных входящих</td><td>Исходящий обзвон по согласованию визитов</td></tr>
+      <tr><td>Объём в неделю (оценка)</td><td class="mono">~626 звонков</td><td class="mono orange">~5 000–7 000 звонков</td></tr>
+      <tr><td>Что выигрываем</td><td>Не теряем заявки, держим SLA</td><td>Высвобождаем 30–40% времени операторов</td></tr>
+      <tr><td>Прямой эффект</td><td>Сохранение выручки от потерянных визитов</td><td>Сокращение затрат на персонал или расширение мощностей без найма</td></tr>
+      <tr><td>Срок до результата</td><td class="mono">~3 недели</td><td class="mono">+1–2 недели после пилота</td></tr>
+    </tbody>
+  </table>
+
+  <div class="highlight-orange">
+    <strong>Стратегическая логика.</strong> Пилот закрывает видимую боль клиента — потерянные звонки и SLA перед Vodafone. Это даёт быстрый и понятный результат, на который можно опереться при принятии решения о развитии. Фаза 2 закрывает скрытый, но гораздо более крупный пласт работы — типовой исходящий обзвон, который сейчас целиком ложится на операторов и потребляет их основное рабочее время. Совокупный эффект двух фаз — переход КЦ из режима «реактивно отвечаем на звонки» в режим «фокусируемся на сложных кейсах, рутину делает робот».
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- 06 РИСКИ -->
+<section>
+  <h2><span class="num">07</span> Риски и митигация</h2>
+
+  <table class="data-table">
+    <thead><tr><th>Риск</th><th>Митигация</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>Задержка перезвона оператором сводит на нет работу робота</strong></td>
+        <td>Самый недооценённый риск пилота. Робот принимает звонок, обещает быстрый перезвон, но если оператор перезванивает через несколько часов — клиент чувствует себя обманутым, удовлетворённость падает ниже плинтуса. Митигация: до запуска фиксируем с КЦ внутреннее правило «строки из таблицы обрабатываются в первую очередь, время до перезвона &lt; 20 минут». На пилоте это отдельная метрика, по которой видно, выполняется ли договорённость.</td>
+      </tr>
+      <tr>
+        <td><strong>Качество распознавания немецкой речи в телефонной полосе</strong></td>
+        <td>Совместные тесты с операторами КЦ на днях 8–12 проводятся на реальных голосах. Скрипт корректируется до запуска. При необходимости — дообучение модели на собранных данных.</td>
+      </tr>
+      <tr>
+        <td><strong>Реальный профиль потерянных входящих не совпадает с предположениями</strong></td>
+        <td>В первые дни после запуска собираются реальные данные: кто звонит на потерянные звонки, какие сценарии встречаются. Скрипт корректируется по реальным данным.</td>
+      </tr>
+      <tr>
+        <td><strong>Клиент Vodafone отказывается от использования робота</strong></td>
+        <td>Робот представляется честно как автоматический ассистент. Решение принимается совместно с Vodafone до запуска. По опыту похожих проектов в немецких телекомах — отказов на этом этапе не бывает.</td>
+      </tr>
+      <tr>
+        <td><strong>GDPR-соответствие записи и обработки</strong></td>
+        <td>Серверы робота размещаются в EU. Данные не покидают EU. Хранение записей — по тем же правилам, что и для оператора-человека.</td>
+      </tr>
+      <tr>
+        <td><strong>Сопротивление операторов</strong></td>
+        <td>Робот не заменяет оператора, а снимает с него рутину «холодного» приёма звонка. Оператор продолжает делать самое важное — закрывать вопрос клиента. На пилоте это объясняется команде до запуска.</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<div class="divider"></div>
+
+<!-- 07 ЗАКЛЮЧЕНИЕ -->
+<section>
+  <h2><span class="num">08</span> Что предлагаем сделать</h2>
+
+  <div class="phase" data-phase="Решение">
+    <div class="phase-title">Запустить пилот за ~3 недели</div>
+
+    <p style="font-size: 17px;">Решение, которое мы предлагаем принять:</p>
+
+    <ul style="margin: 20px 0;">
+      <li>Запускаем пилот голосового робота-перехватчика входящих звонков по плану из раздела 04</li>
+      <li>Цель пилота — три KPI одновременно: ноль потерянных звонков на пилотной линии, корректность квалификации &gt; 70%, удовлетворённость клиента &gt; 70%</li>
+      <li>Срок до запуска — ~3 недели (14 рабочих дней): подготовка, разработка и внутренние тесты Intwin, контрольная точка, совместные тесты с операторами КЦ и доработка</li>
+      <li>Бот не интегрируется с Comp4, не использует базу данных, не пытается решать вопросы клиентов — только квалифицирует обращение и выгружает данные в Excel-таблицу для перезвона оператором</li>
+      <li>После успешного завершения пилота — переход к фазе 2 (автоматизация исходящего обзвона), где экономический эффект существенно крупнее</li>
+    </ul>
+
+    <p>Документ с технической спецификацией для команды разработки готовится отдельно и будет передан после согласования этого плана.</p>
+  </div>
+</section>
+
+<footer class="footer">
+  <p>Документ подготовлен на основе анализа 24 аудиозаписей звонков КЦ за 5 рабочих дней.</p>
+</footer>
+
+</div>
+</body>
+</html>
